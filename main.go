@@ -1,46 +1,66 @@
-// package main
-//
-// import "fmt"
-//
-// func main() {
-//     fmt.Println("Hello world!")
-// }
-
 package main
 
-// here we define our imports
 import (
-  // import in standard libraries
+  "github.com/gin-gonic/gin"
+  "gopkg.in/mgo.v2"
+  "gopkg.in/mgo.v2/bson"
+
 	"net/http"
 	"os"
-
-  // import the web framework
-	"github.com/gin-gonic/gin"
 )
 
-// all go projects require a main function
+
+type Butt struct {
+	ID          bson.ObjectId `json:"id" bson:"_id,omitempty"`
+	Name        string
+	Firm        string
+	Style       string
+}
+
 // this is the function that runs the program
 func main() {
+    lab := os.Getenv("MONGOLAB_URI")
+  	db := os.Getenv("myButts")
+
+
+    port := os.Getenv("PORT")
+    if port == "" {
+      port = "3000"
+    }
+
   // initialize a gin server
 	r := gin.Default()
-
-  // load html files to be rendered
 	r.LoadHTMLGlob("*.html")
-  // parse through static files to be served
-  // static files include our js and css
 	r.Static("/public", "public")
 
-  // define the port our server will be running on
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "3000"
-	}
+  session, err := mgo.Dial(lab)
+  col := session.DB(db).C("myButts")
+  if err != nil {
+    panic(err)
+  }
 
-  // define the route path and response
-	r.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{
-			"HelloMessage": "Phil is Awesome and i like the color rebecca!",
+  r.GET("/", func(c *gin.Context) {
+		var butts []Butt
+		col.Find(nil).All(&butts)
+		c.JSON(http.StatusOK, gin.H{
+			"butts": butts,
 		})
+	})
+
+
+	r.POST("/", func(c *gin.Context) {
+		name := c.PostForm("name")
+		firm := c.PostForm("firm")
+		style := c.PostForm("style")
+
+		err = col.Insert(&Butt{Name: name, Firm: firm, Style: style})
+		if err != nil {
+			panic(err)
+		}
+    c.JSON(http.StatusOK, gin.H{
+			"plesa": "work",
+		})
+    // c.Redirect(http.StatusMovedPermanently, "/")
 	})
 
   // start the server
